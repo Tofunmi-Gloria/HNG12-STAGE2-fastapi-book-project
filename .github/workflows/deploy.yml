@@ -1,0 +1,25 @@
+name: Deploy to Railway
+
+on:
+  push:
+    branches:
+      - main # The workflow will run when a commit is pushed to the main branch
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest # Using an Ubuntu environment for deployment
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2 # Checkout the code from the repository
+
+      - name: Install Railway CLI
+        run: |
+          npm install -g @railway/cli  # Install Railway CLI using npm
+
+      - name: Authenticate with Railway using API Key
+        run: |
+          echo "RAILWAY_TOKEN=${{ secrets.RAILWAY_API_KEY }}" >> $GITHUB_ENV  # Set Railway API key as environment variable
+
+      - name: Deploy to Railway
+        run: railway up --service fastapi-book-project # Deploy using the service name "fastapi-book-project"
