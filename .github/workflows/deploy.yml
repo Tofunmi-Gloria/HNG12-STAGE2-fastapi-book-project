@@ -1,25 +1,60 @@
-name: Deploy to Railway
+name: deploy
 
 on:
   push:
     branches:
-      - main # The workflow will run when a commit is pushed to the main branch
+      - main
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest # Using an Ubuntu environment for deployment
-
+    runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v2 # Checkout the code from the repository
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v4
+        with:
+          python-version: 3.11
 
-      - name: Install Railway CLI
-        run: |
-          npm install -g @railway/cli  # Install Railway CLI using npm
+      # Deploy to server
+      - name: Deploy to Staging Server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{secrets.SERVER_HOST}}
+          key: ${{secrets.SERVER_SSH_KEY}}
+          username: ${{secrets.SERVER_USERNAME}}
+          script: |
+            echo “Starting deployment...”
 
-      - name: Authenticate with Railway using API Key
-        run: |
-          echo "RAILWAY_TOKEN=${{ secrets.RAILWAY_API_KEY }}" >> $GITHUB_ENV  # Set Railway API key as environment variable
+            # Create and navigate to project directory
+            mkdir -p tofunmi-gloria-fastapi-stage12-task
+            cd tofunmi-gloria-fastapi-stage12-task
 
-      - name: Deploy to Railway
-        run: railway up --service fastapi-book-project # Deploy using the service name "fastapi-book-project"
+            # Clone the repository into the project directory
+            git clone https://github.com/Tofunmi-Gloria/HNG12-STAGE2-fastapi-book-project.git .
+
+            # Pull latest changes
+            echo “Pulling latest changes...”
+            git fetch --all
+            git pull origin main
+
+            # Setup virtual environment
+            echo “Setting up virtual environment...”
+            python3 -m venv venv || exit 1
+            source venv/bin/activate || exit 1
+
+            #Install fastapi
+            pip install fastapi || exit 1
+            echo “FastAPI installed successfully”
+
+            # Install dependencies
+            echo “Installing dependencies...”
+            pip install -r requirements.txt || exit 1
+
+            # Stop existing application if running
+            echo “Stopping existing application...”
+            killall uvicorn || echo “No existing process found”
+            echo “Application stopped successfully”
+
+            # Start application
+            echo “Starting application...”
+            nohup uvicorn main:app --host 0.0.0.0 --port 8000 > app.log 2>&1 &
+            echo “Application started successfully”
